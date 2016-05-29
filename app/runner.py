@@ -1,5 +1,7 @@
 import subprocess
 
+from .logger import logger
+
 
 class BaseRunner(object):
 
@@ -20,37 +22,45 @@ class BaseRunner(object):
             stdout=subprocess.PIPE,
         )
 
-    def print_result(self, cmd_string, proc, i):
+    def log_result(self, proc, i):
+        cmd_string = proc.args
         output = proc.stdout.read().decode('utf-8')
-        print("")
-        print("==================================================")
-        print("Ran command {0} of {1}:".format(i, len(self.commands)))
-        print("  {0}".format(cmd_string))
-        print("")
-        print(output)
-        print("")
-        print("==================================================")
-        print("")
+        logger.info("")
+        logger.info("=" * 50)
+        logger.info("Ran command {0} of {1}:".format(i, len(self.commands)))
+        logger.info("  {0}".format(cmd_string))
+        logger.info("")
+        logger.info(output)
+        logger.info("")
+        logger.info("=" * 50)
+        logger.info("")
+
+    def add_serial_command(self, command):
+        pass
 
 
 class SerialRunner(BaseRunner):
 
     def run(self):
-        for i, command in enumerate(self.commands):
+        # use 1-offset indexes
+        for i0, command in enumerate(self.commands):
+            i = i0 + 1
             cmd_string = command(0)
             p = self._run_single(cmd_string)
             p.wait()
-            self.print_result(cmd_string, p, i)
+            self.log_result(p, i)
 
 
 class ParallelRunner(BaseRunner):
 
     def run(self):
         procs = []
-        for i, command in enumerate(self.commands):
+        for i0, command in enumerate(self.commands):
+            i = i0 + 1
             cmd_string = command(0)
             p = self._run_single(cmd_string)
             procs.append(p)
-        for i, p in enumerate(procs):
+        for i0, p in enumerate(procs):
+            i = i0 + 1
             p.wait()
-            self.print_result(cmd_string, p, i)
+            self.log_result(p, i)
