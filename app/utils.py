@@ -1,3 +1,4 @@
+from datetime import timedelta
 from glob import glob
 
 
@@ -10,7 +11,10 @@ def split_files_into_groups(num_groups, glob_pattern, shuffle_files=False):
 
 
 def time_duration_pretty(num_seconds):
-    total_seconds = int(num_seconds)
+    if isinstance(num_seconds, timedelta):
+        total_seconds = num_seconds.seconds
+    else:
+        total_seconds = int(num_seconds)
     SECS_IN_MIN = 60
     MINS_IN_HOUR = 60
     SECS_IN_HOUR = SECS_IN_MIN * MINS_IN_HOUR
