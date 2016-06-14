@@ -1,0 +1,4 @@
+web:
+  container_name: "parallel-ci-runner-example-${RUNNER_NUMBER}"
+  image: "${DOCKER_IMAGE}"
+  command: sleep 3600

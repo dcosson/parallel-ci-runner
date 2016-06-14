@@ -6,8 +6,10 @@ from app.runner import BaseRunner
 def foo_cmd(i):
     return r"sleep 2 && echo ran command with {0}".format(i)
 
+
 def foo_timeout_cmd(i):
     return r"sleep 10 && echo ran command with {0}".format(i)
+
 
 # web_compose_builder = DockerComposeCommandBuilder()
 # cmd = web_compose_builder.build('run web echo hello')
