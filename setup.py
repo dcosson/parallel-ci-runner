@@ -10,5 +10,6 @@ setup(
     author='Danny Cosson',
     author_email='dcosson@gmail.com',
     url='https://github.com/dcosson/parallel-ci-runner',
+    license='MIT',
     packages=['parallel_ci_runner'],
 )
