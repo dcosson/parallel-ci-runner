@@ -50,6 +50,7 @@ class DockerComposeCommand(object):
 
     def _default_env_vars(self, process_num):
         return {
+            'PROJECT_NAME_BASE': self.project_name_base,
             'CI_COMMAND_NUMBER': process_num,
         }
 
