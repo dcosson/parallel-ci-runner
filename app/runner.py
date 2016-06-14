@@ -15,8 +15,6 @@ from .utils import time_duration_pretty, format_with_colors
 class CIRunner(object):
 
     def __init__(self):
-        # command_steps is an array of "command_steps", where each
-        # command_step is an array of commands to be run in parallel
         self.command_steps = []
         self.cleanup_steps = []
 
@@ -101,6 +99,7 @@ class CIRunner(object):
                 logger.info("")
                 self._run_cleanup()
                 sys.exit(1)
+        self._run_cleanup()
 
     def _run_cleanup(self):
         num_steps = len(self.cleanup_steps)

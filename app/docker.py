@@ -1,4 +1,6 @@
 from functools import partial
+import random
+import string
 
 
 class DockerBuildCommand(object):
@@ -20,9 +22,15 @@ class DockerBuildCommand(object):
 
 
 class DockerCommand(object):
-    def __init__(self, docker_command, name_prefix):
+    def __init__(self, docker_command, container_name_prefix):
         self.docker_command = docker_command
-        self.name_prefix = name_prefix
+        self.container_name_prefix = container_name_prefix
+
+    def build(self, cmd_string):
+        def docker_command(process_num):
+            return "docker {0} {1}{2} {3}".format(
+                self.docker_command, self.container_name_prefix, process_num, cmd_string)
+        return docker_command
 
 
 class DockerComposeCommand(object):
@@ -33,14 +41,23 @@ class DockerComposeCommand(object):
                  project_name_base=None, env_vars=None):
         self.docker_compose_file = docker_compose_file
         self.env_vars = env_vars or {}
-        self.project_name_base = project_name_base
+        self.project_name_base = project_name_base or self._random_project_name()
+
+    def _random_project_name(self, length=12):
+        chars = string.ascii_lowercase + string.digits
+        return 'cirunner' + ''.join(random.choice(chars) for i in range(length))
+
+    def _default_env_vars(self, process_num):
+        return {
+            'CI_COMMAND_NUMBER': process_num,
+        }
 
     def _build_cmd(self, app, cmd_string, docker_compose_command, process_num):
         """ Builds the docker-compose command running cmd_string
             process_num gets appended to the project name which lets you run
             in parallel on separate docker-compose clusters of containers.
         """
-        output = self._env_vars_prefix()
+        output = self._env_vars_prefix(process_num)
         output += self._compose_with_file_and_project_name(process_num)
         output += " {0}".format(docker_compose_command)
         if app:
@@ -50,7 +67,7 @@ class DockerComposeCommand(object):
         return output
 
     def _cleanup_cmd(self, process_num):
-        tmp = self._env_vars_prefix()
+        tmp = self._env_vars_prefix(process_num)
         tmp += self._compose_with_file_and_project_name(process_num)
         return "{0} stop && {0} rm --force".format(tmp)
 
@@ -64,10 +81,12 @@ class DockerComposeCommand(object):
             output += " -p {0}".format(project_name)
         return output
 
-    def _env_vars_prefix(self):
+    def _env_vars_prefix(self, process_num):
         output = ""
-        if self.env_vars:
-            output += ' '.join("{0}={1}".format(k, v) for k, v in self.env_vars.items())
+        env_vars = self._default_env_vars(process_num)
+        env_vars.update(self.env_vars)
+        if env_vars:
+            output += ' '.join("{0}={1}".format(k, v) for k, v in env_vars.items())
             output += " "
         return output
 
