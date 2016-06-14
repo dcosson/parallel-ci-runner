@@ -1,7 +1,8 @@
 from datetime import timedelta
 
-from app.docker import DockerBuildCommand, DockerCommand, DockerComposeCommand, SpecCommandInGroups
-from app.runner import CIRunner
+from parallel_ci_runner import (
+    CIRunner, DockerBuildCommand, DockerCommand, DockerComposeCommand, SpecCommandInGroups,
+)
 
 ###
 ### Set up docker command generators
