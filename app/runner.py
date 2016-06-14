@@ -18,21 +18,25 @@ class CIRunner(object):
         self.command_steps = []
         self.cleanup_steps = []
 
-    def add_serial_command_step(self, command, timeout=None):
+    def add_serial_command_step(self, command, timeout=None, stdout_callback=None):
         """ Add a command to run.
             A command is a function that takes in process number and returns a
             string to be executed as a subcommand in a shell.
         """
-        self.command_steps.append((1, [command], timeout))
+        cmd = Command(command, stdout_callback=stdout_callback)
+        self.command_steps.append((1, [cmd], timeout))
 
     def add_parallel_command_step(self, commands_list, timeout=None):
-        self.command_steps.append((len(commands_list), commands_list, timeout))
+        cmd_list = [Command(c) for c in commands_list]
+        self.command_steps.append((len(cmd_list), cmd_list, timeout))
 
     def add_serial_cleanup_step(self, command, timeout=None):
-        self.cleanup_steps.append((1, [command], timeout))
+        cmd = Command(command)
+        self.cleanup_steps.append((1, [cmd], timeout))
 
     def add_parallel_cleanup_step(self, commands_list, timeout=None):
-        self.cleanup_steps.append((len(commands_list), commands_list, timeout))
+        cmd_list = [Command(c) for c in commands_list]
+        self.cleanup_steps.append((len(cmd_list), cmd_list, timeout))
 
     def _run_single(self, cmd_string):
         return subprocess.Popen(
@@ -41,7 +45,8 @@ class CIRunner(object):
             stdout=subprocess.PIPE,
         )
 
-    def _run_command_step(self, command_step, step_num, num_steps, timeout, is_cleanup):
+    def _run_command_step(self, command_step, step_num, num_steps, timeout,
+                          is_cleanup):
         self.log_step(step_num, num_steps, len(command_step), is_cleanup)
         procs = []
         tick_seconds = 1
@@ -51,8 +56,8 @@ class CIRunner(object):
         # launch commands
         for i, command in enumerate(command_step):
             proc_num = i + 1
-            cmd_string = command(proc_num)
-            proc = Process.create(proc_num, cmd_string, timeout)
+            cmd_string = command.command_fn(proc_num)
+            proc = Process.create(proc_num, cmd_string, timeout, command.stdout_callback)
             procs.append(proc)
         pending_procs = procs
 
@@ -91,7 +96,8 @@ class CIRunner(object):
         num_steps = len(self.command_steps)
         for i, command_step_tuple in enumerate(self.command_steps):
             _, command_step, timeout = command_step_tuple
-            procs = self._run_command_step(command_step, i + 1, num_steps, timeout, False)
+            procs = self._run_command_step(
+                command_step, i + 1, num_steps, timeout, False)
             if not self.all_succeeded(procs):
                 logger.info("")
                 logger.info(format_with_colors(
@@ -129,9 +135,15 @@ class CIRunner(object):
         logger.info(info)
 
 
+class Command(object):
+    def __init__(self, command, stdout_callback=None):
+        self.command_fn = command
+        self.stdout_callback = stdout_callback
+
+
 class Process(object):
     @classmethod
-    def create(cls, number, cmd_string, timeout):
+    def create(cls, number, cmd_string, timeout, stdout_callback):
         """ Run the given command string in a shell as a new process,
         initializing a Process object wrapper for it.
         """
@@ -140,15 +152,16 @@ class Process(object):
             shell=True,
             stdout=subprocess.PIPE,
         )
-        return cls(number, cmd_string, p, datetime.now(), timeout)
+        return cls(number, cmd_string, p, datetime.now(), timeout, stdout_callback)
 
     def __init__(self, number, cmd_string, popen_process,
-                 started_at, timeout):
+                 started_at, timeout, stdout_callback):
         self.number = number
         self.cmd_string = cmd_string
         self.popen_process = popen_process
         self.started_at = started_at
         self.timeout = timeout
+        self.stdout_callback = stdout_callback
         self.status = None
 
     def update_status(self):
@@ -186,6 +199,8 @@ class Process(object):
             output = "<No output from timed out process>"
         else:
             output = self.popen_process.stdout.read().decode('utf-8')
+        if self.stdout_callback is not None:
+            self.stdout_callback(output)
         return output
 
     # Process can be either: pending, complete, or timed_out.

@@ -17,7 +17,7 @@ class DockerBuildCommand(object):
                 self.dockerfile, self.docker_repo, self.tag)
         return docker_build_command
 
-    def full_path(self):
+    def full_image_name(self):
         return "{0}:{1}".format(self.docker_repo, self.tag)
 
 
@@ -26,8 +26,9 @@ class DockerCommand(object):
         self.docker_command = docker_command
         self.container_name_prefix = container_name_prefix
 
-    def build(self, cmd_string):
+    def build(self, cmd):
         def docker_command(process_num):
+            cmd_string = cmd(process_num) if hasattr(cmd, '__call__') else cmd
             return "docker {0} {1}{2} {3}".format(
                 self.docker_command, self.container_name_prefix, process_num, cmd_string)
         return docker_command
@@ -95,3 +96,26 @@ class DockerComposeCommand(object):
 
     def cleanup(self):
         return self._cleanup_cmd
+
+
+class SpecCommandInGroups(object):
+    def __init__(self, spec_command):
+        self.spec_command = spec_command
+        self.all_specs = []
+
+    def load_specs(self, specs_output):
+        for line in specs_output.split('\n'):
+            self.all_specs.append(line)
+
+    def _spec_groups(self, num_groups):
+        result = [[] for _ in range(num_groups)]
+        for i, val in enumerate(self.all_specs):
+            result[i % num_groups].append(val)
+        return result
+
+    def _build_cmd(self, number, total_number):
+        files = ' '.join(self._spec_groups(total_number)[number - 1])
+        return "{0} {1}".format(self.spec_command, files)
+
+    def build(self, total_number):
+        return partial(self._build_cmd, total_number=total_number)
