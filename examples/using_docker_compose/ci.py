@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from datetime import timedelta
 
 from parallel_ci_runner import (
