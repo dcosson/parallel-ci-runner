@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 import subprocess
+import sys
 # from threading import Thread
 import time
 # try:
@@ -11,12 +12,13 @@ from .logger import logger
 from .utils import time_duration_pretty, format_with_colors
 
 
-class BaseRunner(object):
+class CIRunner(object):
 
     def __init__(self):
         # command_steps is an array of "command_steps", where each
         # command_step is an array of commands to be run in parallel
         self.command_steps = []
+        self.cleanup_steps = []
 
     def add_serial_command_step(self, command, timeout=None):
         """ Add a command to run.
@@ -28,6 +30,12 @@ class BaseRunner(object):
     def add_parallel_command_step(self, commands_list, timeout=None):
         self.command_steps.append((len(commands_list), commands_list, timeout))
 
+    def add_serial_cleanup_step(self, command, timeout=None):
+        self.cleanup_steps.append((1, [command], timeout))
+
+    def add_parallel_cleanup_step(self, commands_list, timeout=None):
+        self.cleanup_steps.append((len(commands_list), commands_list, timeout))
+
     def _run_single(self, cmd_string):
         return subprocess.Popen(
             cmd_string,
@@ -35,8 +43,8 @@ class BaseRunner(object):
             stdout=subprocess.PIPE,
         )
 
-    def _run_command_step(self, command_step, step_num, num_steps, timeout):
-        self.log_step(step_num, num_steps, len(command_step))
+    def _run_command_step(self, command_step, step_num, num_steps, timeout, is_cleanup):
+        self.log_step(step_num, num_steps, len(command_step), is_cleanup)
         procs = []
         tick_seconds = 1
         log_status_every_seconds = 30
@@ -85,11 +93,30 @@ class BaseRunner(object):
         num_steps = len(self.command_steps)
         for i, command_step_tuple in enumerate(self.command_steps):
             _, command_step, timeout = command_step_tuple
-            self._run_command_step(command_step, i + 1, num_steps, timeout)
+            procs = self._run_command_step(command_step, i + 1, num_steps, timeout, False)
+            if not self.all_succeeded(procs):
+                logger.info("")
+                logger.info(format_with_colors(
+                    "{red}Exiting due to 1 or more commands failed{end}"))
+                logger.info("")
+                self._run_cleanup()
+                sys.exit(1)
+
+    def _run_cleanup(self):
+        num_steps = len(self.cleanup_steps)
+        for i, command_step_tuple in enumerate(self.cleanup_steps):
+            _, command_step, timeout = command_step_tuple
+            # in cleanup, run all steps regardless of if any previous ones fail
+            self._run_command_step(command_step, i + 1, num_steps, timeout, True)
 
     @classmethod
-    def log_step(cls, step_num, num_steps, num_commands):
-        info = "Running step {0} of {1}".format(step_num, num_steps)
+    def all_succeeded(cls, procs):
+        return all(p.status == 0 for p in procs)
+
+    @classmethod
+    def log_step(cls, step_num, num_steps, num_commands, is_cleanup):
+        cleanup_str = "Cleanup " if is_cleanup else "Running "
+        info = "{0}step {1} of {2}".format(cleanup_str, step_num, num_steps)
         if num_commands == 1:
             info += " (single command)"
         else:

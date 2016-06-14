@@ -1,6 +1,6 @@
 from datetime import timedelta
 # from app.docker_utils import DockerComposeCommandBuilder
-from app.runner import BaseRunner
+from app.runner import CIRunner
 
 
 def foo_cmd(i):
@@ -14,7 +14,7 @@ def foo_timeout_cmd(i):
 # web_compose_builder = DockerComposeCommandBuilder()
 # cmd = web_compose_builder.build('run web echo hello')
 
-runner = BaseRunner()
+runner = CIRunner()
 runner.add_serial_command_step(foo_cmd)
 runner.add_parallel_command_step([foo_cmd, foo_cmd, foo_timeout_cmd], timeout=timedelta(seconds=3))
 runner.run()
