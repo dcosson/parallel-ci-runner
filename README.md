@@ -17,7 +17,7 @@ It tries to be agnostic of your setup, and just provide building blocks for you 
 
 The basic data model is that a CIRunner contains a list of steps, and each step is either a single command to run or a list of commands to run in parallel. You can set a timeout for a step, which is used to kill any command in the step that runs for longer than the timeout value.
 
-A "command" (as passed to arguments that take a command or commands_list) is just a function that takes in an integer command number and returns a string of a shell command to run (the integer is used to specify which of N parallel proccesses it's running as)
+A "command" (as passed to arguments that take a command or commands_list) is just a function that takes in an integer command number and returns a string of a shell command to run (the integer is used to specify which of N parallel proccesses it's running as). A command can also just be a string, if e.g. a serial command doesnt need to care about a command number.
 
 If any of the shell commands in a step exits with a non-zero code or times out, the entire test run fails and exits with status 1.
 
