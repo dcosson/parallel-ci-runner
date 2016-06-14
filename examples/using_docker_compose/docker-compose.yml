@@ -1,4 +1,4 @@
 web:
-  container_name: "${PROJECT_NAME_BASE}${CI_COMMAND_NUMBER}"
+  container_name: "${PROJECT_NAME}"
   image: "${DOCKER_IMAGE}"
   command: sleep 3600

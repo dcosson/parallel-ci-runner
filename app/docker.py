@@ -50,9 +50,14 @@ class DockerComposeCommand(object):
 
     def _default_env_vars(self, process_num):
         return {
-            'PROJECT_NAME_BASE': self.project_name_base,
+            'PROJECT_NAME': self._project_name(process_num),
             'CI_COMMAND_NUMBER': process_num,
         }
+
+    def _project_name(self, command_num):
+        if self.project_name_base is None:
+            return None
+        return self.project_name_base + str(command_num)
 
     def _build_cmd(self, app, cmd_string, docker_compose_command, process_num):
         """ Builds the docker-compose command running cmd_string
@@ -76,11 +81,8 @@ class DockerComposeCommand(object):
     def _compose_with_file_and_project_name(self, process_num):
         output = "docker-compose"
         output += " -f {0}".format(self.docker_compose_file)
-        if self.project_name_base:
-            project_name = self.project_name_base
-            if process_num:
-                project_name += str(process_num)
-            output += " -p {0}".format(project_name)
+        if self._project_name(process_num):
+            output += " -p {0}".format(self._project_name(process_num))
         return output
 
     def _env_vars_prefix(self, process_num):
