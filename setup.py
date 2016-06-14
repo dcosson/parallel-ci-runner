@@ -1,0 +1,14 @@
+#!/usr/bin/env python
+
+from distutils.core import setup
+
+setup(
+    name='parallel-ci-runner',
+    version='0.1.0',
+    description='A framework for defining and running parallel CI tests, '
+                'with support for docker-compose.',
+    author='Danny Cosson',
+    author_email='dcosson@gmail.com',
+    url='https://github.com/dcosson/parallel-ci-runner',
+    packages=['parallel_ci_runner'],
+)
