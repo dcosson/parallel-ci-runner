@@ -40,12 +40,16 @@ The examples directory has a super simple shell example, and a full-fledged exam
 Number of parallel processes should be separate from the number of commands
 to run, i.e. allow it to look like pool of workers pulling from a queue of
 jobs. This would allow e.g. having 100 spec files and running them 1 at a
-time as they finish on 10 parallel workers, where worker 1 might only run two files and worker 2 might run 20 in the same time.
-  
-Currently, it only supports e.g. splitting 100 files into 10 groups of 10 and
+time as they finish on 10 parallel workers, where worker 1 might only run two files and worker 2 might run 20 in the same time. Currently, it only supports e.g. splitting 100 files into 10 groups of 10 and
 running each group on a worker, which is more prone to stragglers.
 
-- Support running a parallel command step on multiple machines (this is
-  should be super simple with the DOCKER_HOST variable, probably just need
-  to be able to pass extra env vars to the `build()` methods for the docker,
-  docker build and docker compose builders).
+Support running a parallel command step on multiple machines (this is
+should be super simple with the DOCKER_HOST variable, probably just need
+to be able to pass extra env vars to the `build()` methods for the docker,
+docker build and docker compose builders).
+
+Improve unit test coverage, and write automated integration test that just runs the examples/ dir
+
+Capture stderr and log the same way we do stdout
+
+Allow monitoring stdout non-blocking, with the thread-based approach. For serial commands, and for the last of a step of parallel commands, it would be useful to stream the stdout to the screen live instead of buffering it and printing it all at the end.
