@@ -99,26 +99,3 @@ class DockerComposeCommand(object):
 
     def cleanup(self):
         return self._cleanup_cmd
-
-
-class SpecCommandInGroups(object):
-    def __init__(self, spec_command):
-        self.spec_command = spec_command
-        self.all_specs = []
-
-    def load_specs(self, specs_output):
-        for line in specs_output.split('\n'):
-            self.all_specs.append(line)
-
-    def _spec_groups(self, num_groups):
-        result = [[] for _ in range(num_groups)]
-        for i, val in enumerate(self.all_specs):
-            result[i % num_groups].append(val)
-        return result
-
-    def _build_cmd(self, number, total_number):
-        files = ' '.join(self._spec_groups(total_number)[number - 1])
-        return "{0} {1}".format(self.spec_command, files)
-
-    def build(self, total_number):
-        return partial(self._build_cmd, total_number=total_number)
