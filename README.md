@@ -51,5 +51,3 @@ docker build and docker compose builders).
 Improve unit test coverage, and write automated integration test that just runs the examples/ dir
 
 Capture stderr and log the same way we do stdout
-
-Allow monitoring stdout non-blocking, with the thread-based approach. For serial commands, and for the last of a step of parallel commands, it would be useful to stream the stdout to the screen live instead of buffering it and printing it all at the end.

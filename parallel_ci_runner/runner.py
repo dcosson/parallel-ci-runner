@@ -1,12 +1,12 @@
 from datetime import datetime, timedelta
 import subprocess
 import sys
-# from threading import Thread
+from threading import Thread
 import time
-# try:
-#     from Queue import Queue, Empty
-# except ImportError:
-#     from queue import Queue, Empty  # python 3.x
+try:
+    from Queue import Queue, Empty
+except ImportError:
+    from queue import Queue, Empty  # python 3.x
 
 from .logger import logger
 from .utils import time_duration_pretty, format_with_colors
@@ -84,12 +84,17 @@ class CIRunner(object):
             if len(pending_procs) == 0:
                 return procs
 
+            # if only 1 proc still running, start logging its output in real time
+            if len(pending_procs) == 1:
+                pending_procs[0].log_latest_output()
+
             # Log time running if necessary, then sleep til next tick
             now = datetime.now()
             if now > next_log_status_at:
                 diff = next_log_status_at - started_at
                 logger.info("Running for " + time_duration_pretty(diff.seconds))
                 next_log_status_at += timedelta(seconds=log_status_every_seconds)
+
             time.sleep(tick_seconds)
 
     def run(self):
@@ -157,7 +162,9 @@ class Process(object):
             shell=True,
             stdout=subprocess.PIPE,
         )
-        return cls(number, cmd_string, p, datetime.now(), timeout, stdout_callback)
+        obj = cls(number, cmd_string, p, datetime.now(), timeout, stdout_callback)
+        obj.start_output_listener()
+        return obj
 
     def __init__(self, number, cmd_string, popen_process,
                  started_at, timeout, stdout_callback):
@@ -168,6 +175,7 @@ class Process(object):
         self.timeout = timeout
         self.stdout_callback = stdout_callback
         self.status = None
+        self.started_reading_output = False
 
     def update_status(self):
         self.status = self.popen_process.poll()
@@ -175,38 +183,31 @@ class Process(object):
         if self.timeout is not None and self.is_pending() and timeout_diff >= self.timeout:
             self.status = -1
 
-    # def output_lines(self):
-    #     # process stdout/stderr read() is blocking, which defeats the point of timeout.
-    #     # Instead, we can use Queue.get_nowait() for a non-blocking read from
-    #     # another process.
-    #     def enqueue_output(out, queue):
-    #         for line in iter(out.readline, b''):
-    #             import ipdb; ipdb.set_trace()
-    #             queue.put(line)
-    #         out.close()
+    def start_output_listener(self):
+        def enqueue_output(out, queue):
+            for line in iter(out.readline, b''):
+                queue.put(line)
+            out.close()
 
-    #     q = Queue()
-    #     t = Thread(target=enqueue_output, args=(self.popen_process.stdout, q))
-    #     t.daemon = True  # make sure thread exits when program does
-    #     t.start()
+        self.stdout_q = Queue()
+        self.stdout_reader_t = Thread(target=enqueue_output, args=(self.popen_process.stdout, self.stdout_q))
+        self.stdout_reader_t.daemon = True  # make sure thread exits when program does
+        self.stdout_reader_t.start()
 
-    #     lines = []
-    #     while True:
-    #         try:
-    #             line = q.get_nowait()
-    #             lines.append(line)
-    #         except Empty:
-    #             pass
-    #     return lines
+    def latest_output(self):
+        self.started_reading_output = True
+        while True:
+            try:
+                line = self.stdout_q.get_nowait()
+                yield line
+            except Empty:
+                raise StopIteration()
 
-    def output(self):
-        if self.is_timed_out():
-            output = "<No output from timed out process>"
-        else:
-            output = self.popen_process.stdout.read().decode('utf-8')
-        if self.stdout_callback is not None:
-            self.stdout_callback(output)
-        return output
+    def log_latest_output(self):
+        if not self.started_reading_output:
+            logger.info("Output for {0}:".format(self.number))
+        for line in self.latest_output():
+            logger.info(line.rstrip('\n').rstrip('\r'))
 
     # Process can be either: pending, complete, or timed_out.
     # Complete processes can be successful or failed
@@ -229,6 +230,8 @@ class Process(object):
         self.popen_process.kill()  # kill -9 the process
 
     def log_result(self):
+        if self.started_reading_output: # output is above, log blank line before status
+            logger.info("")
         if self.is_pending():
             col = "{yellow}"
             exit_phrase = "still running"
@@ -244,7 +247,10 @@ class Process(object):
         logger.info(format_with_colors(
             col + "Command {0} {1}{end}", self.number, exit_phrase))
         logger.info(format_with_colors(col + self.cmd_string + "{end}"))
-        logger.info("")
-        logger.info("Output:")
-        for line in self.output().split('\n'):
-            logger.info(line)
+        if not self.started_reading_output:
+            # at this point, process is finished so the non-blocking
+            # latest_output already has all output and we don't have to block.
+            # And output is below, log blank line after status
+            logger.info("")
+            self.log_latest_output()
+        logger.info("-" * 100)
