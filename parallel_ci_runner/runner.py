@@ -190,7 +190,8 @@ class Process(object):
             out.close()
 
         self.stdout_q = Queue()
-        self.stdout_reader_t = Thread(target=enqueue_output, args=(self.popen_process.stdout, self.stdout_q))
+        self.stdout_reader_t = Thread(
+            target=enqueue_output, args=(self.popen_process.stdout, self.stdout_q))
         self.stdout_reader_t.daemon = True  # make sure thread exits when program does
         self.stdout_reader_t.start()
 
@@ -199,7 +200,7 @@ class Process(object):
         while True:
             try:
                 line = self.stdout_q.get_nowait()
-                yield line
+                yield line.rstrip(b'\n').rstrip(b'\r').decode()
             except Empty:
                 raise StopIteration()
 
@@ -207,7 +208,7 @@ class Process(object):
         if not self.started_reading_output:
             logger.info("Output for {0}:".format(self.number))
         for line in self.latest_output():
-            logger.info(line.rstrip('\n').rstrip('\r'))
+            logger.info(line)
 
     # Process can be either: pending, complete, or timed_out.
     # Complete processes can be successful or failed
@@ -230,7 +231,7 @@ class Process(object):
         self.popen_process.kill()  # kill -9 the process
 
     def log_result(self):
-        if self.started_reading_output: # output is above, log blank line before status
+        if self.started_reading_output:  # output is above, log blank line before status
             logger.info("")
         if self.is_pending():
             col = "{yellow}"
