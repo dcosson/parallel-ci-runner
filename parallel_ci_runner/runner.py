@@ -200,7 +200,7 @@ class Process(object):
         while True:
             try:
                 line = self.stdout_q.get_nowait()
-                yield line.rstrip(b'\n').rstrip(b'\r').decode()
+                yield line.rstrip(b'\n').rstrip(b'\r').decode('utf-8')
             except Empty:
                 raise StopIteration()
 
