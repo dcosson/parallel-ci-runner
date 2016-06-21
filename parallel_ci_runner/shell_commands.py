@@ -1,14 +1,17 @@
 from functools import partial
 import sys
 
+
 class SpecCommandInGroups(object):
     def __init__(self, spec_command):
         self.spec_command = spec_command
         self.all_specs = []
 
-    def load_specs(self, specs_output):
-        for line in specs_output.split('\n'):
+    def load_specs(self, specs_output_lines):
+        for line in specs_output_lines:
             self.all_specs.append(line)
+        # if we got no output, treat as failure and return False
+        return len(self.all_specs) > 0
 
     def _spec_groups(self, num_groups):
         result = [[] for _ in range(num_groups)]

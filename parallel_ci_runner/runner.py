@@ -69,11 +69,16 @@ class CIRunner(object):
             # log results of any that have completed
             newly_complete_procs = [proc for proc in pending_procs if proc.is_complete()]
             for proc in newly_complete_procs:
+                if proc.started_reading_output:
+                    proc.log_latest_output()
+                proc.process_callback()
                 proc.log_result()
 
             # kill & log results for any procs past timeout
             timed_out_procs = [proc for proc in pending_procs if proc.is_timed_out()]
             for proc in timed_out_procs:
+                if proc.started_reading_output:
+                    proc.log_latest_output()
                 proc.kill()
                 proc.log_result()
 
@@ -173,8 +178,9 @@ class Process(object):
         self.popen_process = popen_process
         self.started_at = started_at
         self.timeout = timeout
-        self.stdout_callback = stdout_callback
         self.status = None
+        self.stdout_callback = stdout_callback
+        self.stdout_lines = []
         self.started_reading_output = False
 
     def update_status(self):
@@ -200,7 +206,10 @@ class Process(object):
         while True:
             try:
                 line = self.stdout_q.get_nowait()
-                yield line.rstrip(b'\n').rstrip(b'\r').decode('utf-8')
+                parsed_line = line.rstrip(b'\n').rstrip(b'\r').decode('utf-8')
+                if self.stdout_callback:
+                    self.stdout_lines.append(parsed_line)
+                yield parsed_line
             except Empty:
                 raise StopIteration()
 
@@ -224,11 +233,26 @@ class Process(object):
     def is_completed_failed(self):
         return self.status is not None and self.status > 0
 
+    def _failure_code_explanation(self, code):
+        if code == 1000:
+            return "succeeded, but with unexpected output passed to the stdout callback"
+        return "failed with exit code {0}".format(code)
+
     def is_timed_out(self):
         return self.status is not None and self.status == -1
 
     def kill(self):
         self.popen_process.kill()  # kill -9 the process
+
+    def process_callback(self):
+        if not self.stdout_callback:
+            return
+        # if command failed, don't call the stdout callback with the output
+        if not self.is_completed_successful():
+            return
+        cb_status = self.stdout_callback(self.stdout_lines)
+        if not cb_status:
+            self.status = 1000
 
     def log_result(self):
         if self.started_reading_output:  # output is above, log blank line before status
@@ -241,7 +265,7 @@ class Process(object):
             exit_phrase = "exited successfully"
         elif self.is_completed_failed():
             col = "{red}"
-            exit_phrase = "failed with exit code {0}".format(self.status)
+            exit_phrase = self._failure_code_explanation(self.status)
         elif self.is_timed_out():
             col = "{red}"
             exit_phrase = "timed out after {0}".format(time_duration_pretty(self.timeout))
