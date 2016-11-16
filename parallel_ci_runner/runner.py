@@ -26,7 +26,17 @@ class CIRunner(object):
         cmd = Command(command, stdout_callback=stdout_callback)
         self.command_steps.append((1, [cmd], timeout))
 
-    def add_parallel_command_step(self, commands_list, timeout=None):
+    def add_parallel_command_step(self, commands_list, timeout=None, number_in_parallel=None):
+        """
+        Add a list of commands to run in parallel.
+
+        A command is a function that takes in process number and returns a
+        string to be executed as a subcommand in a shell.
+
+        [NOT YET IMPLEMENTED] If number_in_parallel is given, only that number of processes will run
+        at a time and any additional commands in commands_list will run on processes as they become
+        available.
+        """
         cmd_list = [Command(c) for c in commands_list]
         self.command_steps.append((len(cmd_list), cmd_list, timeout))
 
