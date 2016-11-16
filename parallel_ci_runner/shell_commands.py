@@ -13,6 +13,18 @@ class SpecCommandInGroups(object):
         # if we got no output, treat as failure and return False
         return len(self.all_specs) > 0
 
+    def load_specs_order_wc_l_desc(self, wc_l_output_lines):
+        """ Given each line in the format of wc -l output, sort in descending order of line count
+        and return the names of the spec files.
+        Example input line:
+            `    25 ./foo/bar.py`
+        """
+        results = [[int(wc), spec_file] for wc, spec_file in (
+            line.strip().split(' ') for line in wc_l_output_lines)]
+        results.sort(key=lambda t: t[0], reverse=True)
+        output = list(zip(*results)[1])
+        return self.load_specs(output)
+
     def _spec_groups(self, num_groups):
         result = [[] for _ in range(num_groups)]
         for i, val in enumerate(self.all_specs):
@@ -55,4 +67,3 @@ def and_commands(*commands):
     def wrapped_and_command(command_number):
         return ' && '.join(command_fn(command_number) for command_fn in command_fns)
     return wrapped_and_command
-
