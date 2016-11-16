@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from datetime import timedelta
+from functools import partial
 
 from parallel_ci_runner import (
     CIRunner, DockerBuildCommand, DockerCommand, DockerComposeCommand, SpecCommandInGroups,
@@ -31,8 +32,10 @@ cleanup_commands = [docker_compose.cleanup() for _ in range(NUM_PARALLEL)]
 runner = CIRunner()
 runner.add_serial_command_step(docker_build.build(), timedelta(minutes=10))
 runner.add_parallel_command_step(up_cmds, timedelta(minutes=1))
-runner.add_serial_command_step(docker_run.build("find . -name *_spec.rb | xargs wc -l | sed '$d' | sort -nr | awk '{print $2}'"), timedelta(minutes=1),
-                               stdout_callback=rspec_command.load_specs)
+runner.add_serial_command_step(
+        docker_run.build("find . -name *_spec.rb | xargs wc -l | sed '$d' | sort -nr | awk '{print $2}'"),
+        timedelta(minutes=1),
+        stdout_callback=partial(rspec_command.load_specs, run_separately=['./spec/third_spec.rb']))
 runner.add_parallel_command_step(rspec_cmds, timedelta(minutes=1))
 runner.add_parallel_cleanup_step(cleanup_commands, timedelta(minutes=1))
 runner.run()
