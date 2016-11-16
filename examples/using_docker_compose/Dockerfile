@@ -1,7 +1,6 @@
-FROM alpine:3.4
+FROM ruby:2.3.1-alpine
 
-RUN apk --no-cache add bash ruby ruby-dev && \
-    gem install --no-ri --no-rdoc rspec && \
+RUN gem install --no-ri --no-rdoc rspec && \
     mkdir -p /app/spec
 
 WORKDIR /app

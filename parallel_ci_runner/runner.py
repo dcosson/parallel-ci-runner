@@ -271,7 +271,9 @@ class Process(object):
             exit_phrase = "timed out after {0}".format(time_duration_pretty(self.timeout))
         logger.info(format_with_colors(
             col + "Command {0} {1}{end}", self.number, exit_phrase))
-        logger.info(format_with_colors(col + self.cmd_string + "{end}"))
+        # Since we're using format() to add in colors, can't have any raw { and } chars in text
+        printable_cmd_str = self.cmd_string.replace('{', '{{').replace('}', '}}')
+        logger.info(format_with_colors(col + printable_cmd_str + "{end}"))
         if not self.started_reading_output:
             # at this point, process is finished so the non-blocking
             # latest_output already has all output and we don't have to block.
