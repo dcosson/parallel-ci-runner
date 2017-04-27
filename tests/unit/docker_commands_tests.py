@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from app.docker_utils import (
+from parallel_ci_runner.docker_utils import (
     DockerBuildCommandBuilder, DockerComposeCommandBuilder)
 
 

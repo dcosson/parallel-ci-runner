@@ -6,15 +6,18 @@ import string
 class DockerBuildCommand(object):
     """ Generates a `docker build` command to run in a subprocess.
     """
-    def __init__(self, docker_repo, tag, dockerfile='Dockerfile'):
+    def __init__(self, docker_repo, tag, dockerfile='Dockerfile', build_args=None):
         self.docker_repo = docker_repo
         self.tag = tag
         self.dockerfile = dockerfile
+        self.build_args = build_args or {}
 
     def build(self):
         def docker_build_command(process_num):
-            return "docker build -f {0} -t {1}:{2} .".format(
-                self.dockerfile, self.docker_repo, self.tag)
+            build_arg_flags = " ".join(
+                "--build-arg {}='{}'".format(k, v) for k, v in self.build_args.items())
+            return "docker build -f {0} -t {1}:{2} {3} .".format(
+                self.dockerfile, self.docker_repo, self.tag, build_arg_flags)
         return docker_build_command
 
     def full_image_name(self):
