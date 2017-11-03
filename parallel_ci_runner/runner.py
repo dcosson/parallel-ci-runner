@@ -18,16 +18,16 @@ class CIRunner(object):
         self.command_steps = []
         self.cleanup_steps = []
 
-    def add_serial_command_step(self, command, timeout=None, stdout_callback=None):
+    def add_serial_command_step(self, command, timeout=None, suppress_stdout=False, stdout_callback=None):
         """ Add a command to run.
             A command is a function that takes in process number and returns a
             string to be executed as a subcommand in a shell.
         """
-        cmd = Command(command, stdout_callback=stdout_callback)
+        cmd = Command(command, suppress_stdout=suppress_stdout, stdout_callback=stdout_callback)
         self.command_steps.append((1, [cmd], timeout))
 
-    def add_parallel_command_step(self, commands_list, timeout=None, stdout_callback=None):
-        cmd_list = [Command(c, stdout_callback=stdout_callback) for c in commands_list]
+    def add_parallel_command_step(self, commands_list, timeout=None, suppress_stdout=False, stdout_callback=None):
+        cmd_list = [Command(c, suppress_stdout=suppress_stdout, stdout_callback=stdout_callback) for c in commands_list]
         self.command_steps.append((len(cmd_list), cmd_list, timeout))
 
     def add_serial_cleanup_step(self, command, timeout=None):
@@ -57,7 +57,7 @@ class CIRunner(object):
         for i, command in enumerate(command_step):
             proc_num = i + 1
             cmd_string = command.command_fn(proc_num)
-            proc = Process.create(proc_num, cmd_string, timeout, command.stdout_callback)
+            proc = Process.create(proc_num, cmd_string, timeout, command.suppress_stdout, command.stdout_callback)
             procs.append(proc)
         pending_procs = procs
 
@@ -146,19 +146,20 @@ class CIRunner(object):
 
 
 class Command(object):
-    def __init__(self, command, stdout_callback=None):
+    def __init__(self, command, suppress_stdout=False, stdout_callback=None):
         if hasattr(command, '__call__'):
             self.command_fn = command
         else:
             def wrapped_command(i):
                 return command
             self.command_fn = wrapped_command
+        self.suppress_stdout = suppress_stdout
         self.stdout_callback = stdout_callback
 
 
 class Process(object):
     @classmethod
-    def create(cls, number, cmd_string, timeout, stdout_callback):
+    def create(cls, number, cmd_string, timeout, suppress_stdout, stdout_callback):
         """ Run the given command string in a shell as a new process,
         initializing a Process object wrapper for it.
         """
@@ -167,18 +168,19 @@ class Process(object):
             shell=True,
             stdout=subprocess.PIPE,
         )
-        obj = cls(number, cmd_string, p, datetime.now(), timeout, stdout_callback)
+        obj = cls(number, cmd_string, p, datetime.now(), timeout, suppress_stdout, stdout_callback)
         obj.start_output_listener()
         return obj
 
     def __init__(self, number, cmd_string, popen_process,
-                 started_at, timeout, stdout_callback):
+                 started_at, timeout, suppress_stdout, stdout_callback):
         self.number = number
         self.cmd_string = cmd_string
         self.popen_process = popen_process
         self.started_at = started_at
         self.timeout = timeout
         self.status = None
+        self.suppress_stdout = suppress_stdout
         self.stdout_callback = stdout_callback
         self.stdout_lines = []
         self.started_reading_output = False
@@ -215,9 +217,11 @@ class Process(object):
 
     def log_latest_output(self):
         if not self.started_reading_output:
-            logger.info("Output for {0}:".format(self.number))
+            first_word = "(Not showing output)" if self.suppress_stdout else "Output"
+            logger.info("{0} for {1}:".format(first_word, self.number))
         for line in self.latest_output():
-            logger.info(line)
+            if not self.suppress_stdout:
+                logger.info(line)
 
     # Process can be either: pending, complete, or timed_out.
     # Complete processes can be successful or failed
