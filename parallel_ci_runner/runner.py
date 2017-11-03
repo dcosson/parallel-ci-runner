@@ -26,8 +26,8 @@ class CIRunner(object):
         cmd = Command(command, stdout_callback=stdout_callback)
         self.command_steps.append((1, [cmd], timeout))
 
-    def add_parallel_command_step(self, commands_list, timeout=None):
-        cmd_list = [Command(c) for c in commands_list]
+    def add_parallel_command_step(self, commands_list, timeout=None, stdout_callback=None):
+        cmd_list = [Command(c, stdout_callback=stdout_callback) for c in commands_list]
         self.command_steps.append((len(cmd_list), cmd_list, timeout))
 
     def add_serial_cleanup_step(self, command, timeout=None):
@@ -71,8 +71,8 @@ class CIRunner(object):
             for proc in newly_complete_procs:
                 if proc.started_reading_output:
                     proc.log_latest_output()
-                proc.process_callback()
                 proc.log_result()
+                proc.process_callback()
 
             # kill & log results for any procs past timeout
             timed_out_procs = [proc for proc in pending_procs if proc.is_timed_out()]

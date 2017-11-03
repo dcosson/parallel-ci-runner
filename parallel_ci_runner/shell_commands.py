@@ -3,6 +3,17 @@ import sys
 
 
 class SpecCommandInGroups(object):
+    """
+        Given a spec_command, generates the string of the actual command to execute.
+        This class can append data of the group to run by slicing a statically determined list of
+        specs_to_distribute based on the number of total runners and index of the current runner, if
+        you are calling a spec command that takes a list of e.g. specific spec files to run.
+
+        TODO - Or, spec_command can be a function that gets called with args:
+           total_number, current_index
+           where total_number is number of groups and current_index is a 1-indexed index of the
+           current runner.
+    """
     def __init__(self, spec_command):
         self.spec_command = spec_command
         self.specs_to_distribute = []
