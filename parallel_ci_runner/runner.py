@@ -30,12 +30,12 @@ class CIRunner(object):
         cmd_list = [Command(c, suppress_stdout=suppress_stdout, stdout_callback=stdout_callback) for c in commands_list]
         self.command_steps.append((len(cmd_list), cmd_list, timeout))
 
-    def add_serial_cleanup_step(self, command, timeout=None):
-        cmd = Command(command)
+    def add_serial_cleanup_step(self, command, timeout=None, suppress_stdout=False, stdout_callback=None):
+        cmd = Command(command, suppress_stdout=suppress_stdout, stdout_callback=stdout_callback)
         self.cleanup_steps.append((1, [cmd], timeout))
 
-    def add_parallel_cleanup_step(self, commands_list, timeout=None):
-        cmd_list = [Command(c) for c in commands_list]
+    def add_parallel_cleanup_step(self, commands_list, timeout=None, suppress_stdout=False, stdout_callback=None):
+        cmd_list = [Command(c, suppress_stdout=suppress_stdout, stdout_callback=stdout_callback) for c in commands_list]
         self.cleanup_steps.append((len(cmd_list), cmd_list, timeout))
 
     def _run_single(self, cmd_string):
