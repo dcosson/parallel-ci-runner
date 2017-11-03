@@ -4,7 +4,7 @@ from setuptools import setup
 
 setup(
     name='parallel-ci-runner',
-    version='0.1.9',
+    version='0.1.10',
     description='A framework for defining and running parallel CI tests, '
                 'with support for docker-compose.',
     author='Danny Cosson',
